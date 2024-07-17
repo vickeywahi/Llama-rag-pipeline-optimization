@@ -4,6 +4,8 @@ from llama_index.core.evaluation import RetrieverEvaluator, RelevancyEvaluator, 
 from llama_index.llms.openai import OpenAI
 from llama_index.core import ServiceContext
 
+import asyncio
+
 import pandas as pd
 
 # Function to generate dataset (optional)
@@ -20,7 +22,6 @@ def generate_dataset(nodes, llm):
 
 def get_dataset(nodes, llm):
     """Loads the dataset from a file, or generates a new one if it doesn't exist."""
-
     try:
         qc_dataset = EmbeddingQAFinetuneDataset.from_json("qc_dataset.json")
     except FileNotFoundError:
@@ -51,19 +52,26 @@ def display_results_retriever(name, eval_results):
 
 
 # Define the run_evaluations function
-async def run_evaluations(vector_index, nodes, llm, service_context):
+async def run_evaluations(vector_index, nodes, llm, service_context, num_eval_queries):  # Added num_eval_queries
     # You can load the dataset from your local disk if you have already generated it. 
     qc_dataset = get_dataset(nodes, llm)  # Get the dataset (load or generate)
 
     # Retriever Evaluation with different top_k values
     for i in [2, 4, 6, 8, 10]:
-        retriever = vector_index.as_retriever(similarity_top_k=i)
-        retriever_evaluator = RetrieverEvaluator.from_metric_names(
-            ["mrr", "hit_rate"], retriever=retriever
-        )
-        eval_results = await retriever_evaluator.aevaluate_dataset(qc_dataset)
-        print(display_results_retriever(f"Retriever top_{i}", eval_results))
-
+        while True:
+            try:
+                retriever = vector_index.as_retriever(similarity_top_k=i)
+                retriever_evaluator = RetrieverEvaluator.from_metric_names(
+                    ["mrr", "hit_rate"], retriever=retriever
+                )
+                eval_results = await retriever_evaluator.aevaluate_dataset(qc_dataset)
+                print(display_results_retriever(f"Retriever top_{i}", eval_results))
+                break
+            except RateLimitError as e:
+                retry_after = e.retry_after if e.retry_after else 1  # Ensure a minimum wait of 1 second
+                print(f"Rate limit exceeded. Retrying in {retry_after} seconds...")
+                await asyncio.sleep(retry_after)
+  
 
     # Evaluation for Relevancy and Faithfulness metrics
     for i in [2, 4, 6, 8, 10]:
@@ -80,7 +88,7 @@ async def run_evaluations(vector_index, nodes, llm, service_context):
 
         # Run evaluation
         queries = list(qc_dataset.queries.values())
-        batch_eval_queries = queries[:20]
+        batch_eval_queries = queries[:num_eval_queries]  # Use num_eval_queries here
 
         runner = BatchEvalRunner(
         {"faithfulness": faithfulness_evaluator, "relevancy": relevancy_evaluator},

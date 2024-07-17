@@ -1,5 +1,6 @@
 import os
-import getpass
+import getpass #Can remove - redundant
+import argparse
 
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext, StorageContext
@@ -7,7 +8,6 @@ from llama_index.vector_stores.deeplake import DeepLakeVectorStore
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 from dotenv import load_dotenv
-
 
 # Load environment variables from .env file
 load_dotenv()  # Load environment variables from .env file
@@ -17,6 +17,14 @@ llm = OpenAI(model="gpt-3.5-turbo-1106")
 nodes = None
 vector_index = None
 service_context = None
+
+"""Implementing the argparse CLI is still a good idea, as it will allow you to experiment with different parameters 
+e.g: evaluation queries (batch_eval_queries) or the similarity_top_k value, which could help you reduce API usage."""
+parser = argparse.ArgumentParser(description="RAG pipeline evaluation")
+parser.add_argument("--top_k", type=int, default=10, help="Number of top documents to retrieve.")
+parser.add_argument("--num_eval_queries", type=int, default=20, help="Number of queries to use for evaluation.")
+
+args = parser.parse_args()
 
 # Check for required environment variables
 def check_environment_variables():
@@ -83,12 +91,13 @@ async def main():
     vector_index = build_vector_index(nodes)  # Call the new function
 
     """With the vector index, we can now build a QueryEngine, which generates answers with the LLM and the retrieved chunks of text."""
-    query_engine = vector_index.as_query_engine(similarity_top_k=10)
+     # Query and evaluate using parsed arguments
+    query_engine = vector_index.as_query_engine(similarity_top_k=args.top_k)
     response_vector = query_engine.query("What are the main things Paul worked on before college?")
     print(response_vector.response)
     
     import evaluate
-    await evaluate.run_evaluations(vector_index, nodes, llm, service_context)  # Pass the needed arguments
+    await evaluate.run_evaluations(vector_index, nodes, llm, service_context, args.num_eval_queries)  # Pass args.num_eval_queries
 
 if __name__ == "__main__":
   import asyncio
