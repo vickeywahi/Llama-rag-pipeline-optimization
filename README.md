@@ -32,7 +32,6 @@ python main.py
 python main.py --top_k 5 --num_eval_queries 10 
 
 ## Data Source
-
 https://raw.githubusercontent.com/run-llama/llama_index/main/docs/docs/examples/data/paul_graham/paul_graham_essay.txt
 
 To replace this source, edit the main.py file and update the DATA_URL environment variable in the .env file.
