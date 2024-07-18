@@ -16,9 +16,9 @@ This project explores the iterative optimization of a RAG (Retrieval Augmented G
 4. **Employing Deep Memory:** We explore using ActiveLoop's Deep Memory feature to potentially improve retrieval accuracy. 
 
  ## Installation: 
-1. **Create a virtual environment:** `python -m venv llama-rag-env3.10`
+1. **Create a virtual environment:** `python3 -m venv llama-rag-env3.10`
 2. **Activate the environment:** `pyenv activate llama-rag-env3.10` 
-3. **Install dependencies:** `pip install -r requirements.txt requirements-dev.txt` 
+3. **Install dependencies:** `pip install -r requirements.txt -r requirements-dev.txt` 
 4. **Set up environment variables:** Create a `.env` file and add your OpenAI API key and 
 ActiveLoop token (if using Deep Memory):
 OPENAI_API_KEY=<your_openai_api_key> 
@@ -27,9 +27,9 @@ ACTIVELOOP_TOKEN=<your_activeloop_token>
 ## Usage: 
 ```bash 
 # Run main.py with default values 
-python main.py 
+python3 main.py 
  # Run main.py with custom top_k and num_eval_queries 
-python main.py --top_k 5 --num_eval_queries 10 
+python3 main.py --top_k 5 --num_eval_queries 5
 
 ## Data Source
 https://raw.githubusercontent.com/run-llama/llama_index/main/docs/docs/examples/data/paul_graham/paul_graham_essay.txt
