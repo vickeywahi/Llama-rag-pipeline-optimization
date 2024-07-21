@@ -17,7 +17,7 @@ This project explores the iterative optimization of a RAG (Retrieval Augmented G
 
  ## Installation: 
 1. **Create a virtual environment:** `python -m venv llama-rag-env3.10`
-2. **Activate the environment:** `source llama-rag-env3.10/bin/activate` 
+2. **Activate the environment:** `pyenv activate llama-rag-env3.10` 
 3. **Install dependencies:** `pip install -r requirements.txt requirements-dev.txt` 
 4. **Set up environment variables:** Create a `.env` file and add your OpenAI API key and 
 ActiveLoop token (if using Deep Memory):
