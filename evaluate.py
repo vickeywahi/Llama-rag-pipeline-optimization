@@ -57,6 +57,7 @@ async def run_evaluations(vector_index, nodes, llm, service_context, num_eval_qu
     qc_dataset = get_dataset(nodes, llm)  # Get the dataset (load or generate)
 
     # Retriever Evaluation with different top_k values
+    retriever_results = []
     for i in [2, 4, 6, 8, 10]:
         while True:
             try:
