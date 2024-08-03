@@ -5,3 +5,4 @@ qc_dataset.json
 data
 llama-rag-env3.10/
 .DS_Store
+evaluation_cache.json
