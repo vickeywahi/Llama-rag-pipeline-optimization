@@ -80,6 +80,7 @@ async def run_evaluations(vector_index, nodes, llm, service_context, num_eval_qu
     cache = load_cache()  
 
     # Retriever Evaluation with different top_k values
+    retriever_results = []
     for i in [2, 4, 6, 8, 10]:
         cache_key = f"retriever_top_{i}" ##Introducing caching
         if cache_key in cache:
