@@ -1,4 +1,4 @@
-.llama-rag-env3.10
+. llama-rag-env3.10
 .env
 __pycache__
 qc_dataset.json
