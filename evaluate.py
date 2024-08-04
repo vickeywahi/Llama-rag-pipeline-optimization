@@ -1,8 +1,10 @@
+#main branch evaluate.py to start building evaluate.py on the feature-b branch
 import os
 from llama_index.core.evaluation import generate_question_context_pairs, EmbeddingQAFinetuneDataset
 from llama_index.core.evaluation import RetrieverEvaluator, RelevancyEvaluator, FaithfulnessEvaluator, BatchEvalRunner
 from llama_index.llms.openai import OpenAI
 from llama_index.core import ServiceContext
+import json #Introducing caching
 
 import asyncio
 
@@ -50,30 +52,59 @@ def display_results_retriever(name, eval_results):
 
     return metric_df
 
-
 # Define the run_evaluations function
 async def run_evaluations(vector_index, nodes, llm, service_context, num_eval_queries):  # Added num_eval_queries
-    # You can load the dataset from your local disk if you have already generated it. 
+    # You can load the dataset from your local disk if you have already generated
     qc_dataset = get_dataset(nodes, llm)  # Get the dataset (load or generate)
+    #Introducing Caching
+    cache_file = "evaluation_cache.json"  
+
+    def load_cache():
+        try:
+            with open(cache_file, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {}
+        except json.JSONDecodeError as e: 
+            print(f"Error loading cache file: {e}")
+            # Optionally, print the contents of the cache file for debugging
+            with open(cache_file, 'r') as f:
+                print(f"Cache file contents:\n{f.read()}")
+            return {}  
+    
+    def save_cache(cache):
+        with open(cache_file, 'w') as f:
+            json.dump(cache, f, indent=2)
+
+    # Load results cache (if exists)
+    cache = load_cache()  
 
     # Retriever Evaluation with different top_k values
     retriever_results = []
     for i in [2, 4, 6, 8, 10]:
-        while True:
-            try:
-                retriever = vector_index.as_retriever(similarity_top_k=i)
-                retriever_evaluator = RetrieverEvaluator.from_metric_names(
-                    ["mrr", "hit_rate"], retriever=retriever
-                )
-                eval_results = await retriever_evaluator.aevaluate_dataset(qc_dataset)
-                print(display_results_retriever(f"Retriever top_{i}", eval_results))
-                break
-            except RateLimitError as e:
-                retry_after = e.retry_after if e.retry_after else 1  # Ensure a minimum wait of 1 second
-                print(f"Rate limit exceeded. Retrying in {retry_after} seconds...")
-                await asyncio.sleep(retry_after)
-  
-
+        cache_key = f"retriever_top_{i}" ##Introducing caching
+        if cache_key in cache:
+            retriever_results.append(cache[cache_key])
+            print(f"Loaded retriever top_{i} results from cache.")
+        else:        
+            while True:
+                try:
+                    retriever = vector_index.as_retriever(similarity_top_k=i)
+                    retriever_evaluator = RetrieverEvaluator.from_metric_names(
+                        ["mrr", "hit_rate"], retriever=retriever
+                    )
+                    eval_results = await retriever_evaluator.aevaluate_dataset(qc_dataset)
+                    
+                    # Store the first element of the list (assuming it's the relevant one)
+                    cache[cache_key] = eval_results[0].metric_vals_dict  
+                    save_cache(cache) 
+                    print(display_results_retriever(f"Retriever top_{i}", eval_results))
+                    break
+                except RateLimitError as e:
+                    retry_after = e.retry_after if e.retry_after else 1  # Ensure a minimum wait of 1 second
+                    print(f"Rate limit exceeded. Retrying in {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+      
     # Evaluation for Relevancy and Faithfulness metrics
     for i in [2, 4, 6, 8, 10]:
         # Set Faithfulness and Relevancy evaluators
@@ -82,9 +113,11 @@ async def run_evaluations(vector_index, nodes, llm, service_context, num_eval_qu
         # While we use GPT3.5-Turbo to answer questions
         # we tried using GPT4 to evaluate the answers, its expensive, so try GPT3.5-Turbo
         llm_evaluator = OpenAI(temperature=0, model="gpt-3.5-turbo-1106")
+        
         service_context_evaluator = ServiceContext.from_defaults(llm=llm_evaluator)
-
+        
         faithfulness_evaluator = FaithfulnessEvaluator(service_context=service_context_evaluator)
+        
         relevancy_evaluator = RelevancyEvaluator(service_context=service_context_evaluator)
 
         # Run evaluation
